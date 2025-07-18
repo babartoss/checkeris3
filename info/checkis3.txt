@@ -1,0 +1,60 @@
+Dựa trên thông tin tìm được từ tài liệu Neynar, tôi có thể cung cấp cho bạn thông tin về cách lọc comment (replies) trong cast bằng API key của Neynar:
+
+Cách lọc comment trong cast bằng API Neynar
+Neynar cung cấp nhiều cách để lọc và quản lý comment (replies) trong cast:
+
+1. Lọc spam bằng Experimental Flag
+Theo tài liệu từ trang "Understanding number diffs", bạn có thể sử dụng experimental flag để lọc spam:
+
+curl --request GET \
+  --url 'https://api.neynar.com/v2/farcaster/cast/conversation/' \
+  --header 'x-api-key: YOUR_API_KEY' \
+  --header 'x-neynar-experimental: true'
+
+Khi x-neynar-experimental: true, API sẽ trả về dữ liệu đã được lọc spam. Khi false, bạn sẽ nhận được dữ liệu thô.
+
+2. API Conversation for a cast - Lọc chất lượng cuộc trò chuyện
+API /v2/farcaster/cast/conversation/ cho phép lọc comment theo nhiều tiêu chí:
+
+Các tham số lọc quan trọng:
+
+sort_type: Sắp xếp theo chất lượng (chron hoặc algorithmic)
+fold: Hiển thị comment chất lượng cao (above) hoặc thấp (below)
+reply_depth: Độ sâu của replies (mặc định là 2)
+viewer_fid: Lọc theo mutes và blocks của user
+3. Ban FIDs khỏi app
+Sử dụng API /v2/farcaster/ban/ để cấm các FID spam:
+
+POST /v2/farcaster/ban/
+{
+  "fids": [3, 123, 456]
+}
+
+4. Lọc replies theo filter
+API /v2/farcaster/feed/user/replies_and_recasts/ cho phép lọc chỉ replies:
+
+GET /v2/farcaster/feed/user/replies_and_recasts/?fid=194&filter=replies
+
+5. Webhook để theo dõi mentions và replies
+Thiết lập webhook để nhận thông báo real-time khi có comment mới, sau đó áp dụng logic lọc:
+
+mentioned_fids: Lọc khi bot được tag
+parent_author_fids: Lọc khi có reply đến cast của bạn
+Ví dụ thực tế:
+// Lấy conversation với filtering
+const response = await fetch('https://api.neynar.com/v2/farcaster/cast/conversation/', {
+  method: 'GET',
+  headers: {
+    'x-api-key': 'YOUR_API_KEY',
+    'x-neynar-experimental': 'true'  // Bật lọc spam
+  },
+  params: {
+    identifier: 'cast_hash_or_url',
+    type: 'hash',
+    sort_type: 'algorithmic',  // Sắp xếp theo chất lượng
+    fold: 'above',            // Chỉ hiển thị comment chất lượng cao
+    viewer_fid: 'your_fid'    // Áp dụng mutes/blocks
+  }
+});
+
+Thông tin này được tìm thấy từ các trang tài liệu: "Understanding number diffs", "Rank High Quality Conversations", và "Conversation for a cast" trong tài liệu Neynar.

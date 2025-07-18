@@ -1,0 +1,23 @@
+ # Node.js dependencies
+node_modules/
+
+# Environment files
+.env
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Generated files
+players.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/

@@ -1,0 +1,4 @@
+
+node index.js 
+
+node check-winner.js

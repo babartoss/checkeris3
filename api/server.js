@@ -55,7 +55,7 @@ async function getPlayersData() {
 
   const seenFids = new Set();
   const numberMap = new Map();
-  const skippedList = [];  // List không hợp lệ với lý do
+  const skippedList = [];  // Invalid list with reason
 
   // Sort by timestamp ascending
   allReplies.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -105,7 +105,7 @@ async function getPlayersData() {
 
   return {
     totalReplies: allReplies.length,
-    skippedList,  // Danh sách không hợp lệ
+    skippedList,  // Invalid list
     fullList,
     totalSelected,
     totalUnselected,

@@ -1,7 +1,6 @@
 // api/server.js - Express web app for IS3 Lottery Checker
 const express = require('express');
 const axios = require('axios');
-const fs = require('fs');
 require('dotenv').config({ quiet: true });  // Tắt log dotenv
 
 const app = express();
@@ -56,7 +55,7 @@ async function getPlayersData() {
 
   const seenFids = new Set();
   const numberMap = new Map();
-  let skippedDuplicates = 0;
+  const skippedList = [];  // List không hợp lệ với lý do
 
   // Sort by timestamp ascending
   allReplies.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -70,10 +69,17 @@ async function getPlayersData() {
     const timestamp = reply.timestamp;
     const number = extractNumberFromText(text);
 
-    if (!number || seenFids.has(fid)) continue;
+    if (!number) {
+      skippedList.push({ username, fid, number: 'Invalid', timestamp, reason: 'No valid number (00-99) found' });
+      continue;
+    }
 
-    if (numberMap.has(number)) {
-      skippedDuplicates++;
+    let skipReason = null;
+    if (seenFids.has(fid)) skipReason = 'Duplicate FID (user already selected)';
+    else if (numberMap.has(number)) skipReason = 'Duplicate number (already selected by earlier user)';
+
+    if (skipReason) {
+      skippedList.push({ username, fid, number, timestamp, reason: skipReason });
       continue;
     }
 
@@ -94,15 +100,16 @@ async function getPlayersData() {
     if (entry) fullList.push(entry);
   }
 
-  // Write players.json
-  fs.writeFileSync('players.json', JSON.stringify(fullList, null, 2));
+  const totalSelected = fullList.length;
+  const totalUnselected = 100 - totalSelected;
 
   return {
     totalReplies: allReplies.length,
-    skippedDuplicates,
+    skippedList,  // Danh sách không hợp lệ
     fullList,
-    totalPlayers: fullList.length,
-    isFull: fullList.length >= 100,
+    totalSelected,
+    totalUnselected,
+    isFull: totalSelected >= 100,
   };
 }
 
@@ -118,18 +125,29 @@ app.get('/', async (req, res) => {
       <head>
         <title>IS3 Lottery Checker</title>
         <style>
-          body { font-family: Arial; }
-          table { border-collapse: collapse; width: 100%; }
+          body { font-family: Arial; margin: 20px; }
+          h1, h2 { color: #333; }
+          table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
           th { background-color: #f2f2f2; }
+          .stats { background-color: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px; }
+          .note { font-style: italic; color: #666; }
         </style>
       </head>
       <body>
         <h1>IS3 Lottery Players List (Real-time Update)</h1>
-        <p>Total replies fetched: ${data.totalReplies}</p>
-        <p>Number of comments skipped due to duplicates: ${data.skippedDuplicates}</p>
-        <p>Total valid players: ${data.totalPlayers}</p>
-        ${data.isFull ? '<p style="color: green;">📢 Reached 100 participants!</p>' : ''}
+        <p class="note">Data updated in real-time on each page load. Refresh to see latest.</p>
+
+        <div class="stats">
+          <h2>Statistics</h2>
+          <p>Total replies fetched: ${data.totalReplies}</p>
+          <p>Total valid selections: ${data.totalSelected}</p>
+          <p>Total unselected numbers: ${data.totalUnselected}</p>
+          <p>Total invalid comments: ${data.skippedList.length}</p>
+          ${data.isFull ? '<p style="color: green;">📢 Reached 100 participants!</p>' : ''}
+        </div>
+
+        <h2>Valid Players List (00-99)</h2>
         <table>
           <tr><th>Number</th><th>Username</th><th>FID</th><th>Timestamp</th></tr>
   `;
@@ -139,6 +157,18 @@ app.get('/', async (req, res) => {
     const entry = data.fullList.find(e => e.number === num);
     html += `<tr><td>${num}</td><td>${entry ? `@${entry.username}` : '❌ Not selected yet'}</td><td>${entry ? entry.fid : ''}</td><td>${entry ? entry.timestamp : ''}</td></tr>`;
   }
+
+  html += `
+        </table>
+
+        <h2>Invalid Comments List</h2>
+        <table>
+          <tr><th>Username</th><th>FID</th><th>Number</th><th>Timestamp</th><th>Reason</th></tr>
+  `;
+
+  data.skippedList.forEach(skip => {
+    html += `<tr><td>@${skip.username}</td><td>${skip.fid}</td><td>${skip.number}</td><td>${skip.timestamp}</td><td>${skip.reason}</td></tr>`;
+  });
 
   html += `
         </table>
@@ -155,7 +185,7 @@ app.get('/api/players', async (req, res) => {
   if (data.error) {
     return res.status(500).json({ error: data.error });
   }
-  res.json(data.fullList);
+  res.json({ valid: data.fullList, invalid: data.skippedList, stats: { totalSelected: data.totalSelected, totalUnselected: data.totalUnselected } });
 });
 
 // Listen on port if running locally (not on Vercel)

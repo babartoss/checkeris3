@@ -182,6 +182,20 @@ app.get('/', async (req, res) => {
 
   html += `
         </table>
+
+        <h2>Lottery Results (Embedded from Minh Ngọc)</h2>
+        <script language="javascript" src="//www.minhngoc.com.vn/jquery/jquery-1.7.2.js"></script>
+        <link rel="stylesheet" type="text/css" href="//www.minhngoc.com.vn/style/bangketqua_mini.css"/>
+        <div id="box_kqxs_minhngoc">
+          <script language="javascript">
+            bgcolor="#bfbfbf";
+            titlecolor="#730038";
+            dbcolor="#000000";
+            fsize="12px";
+            kqwidth="300px";
+          </script>
+          <script language="javascript" src="//www.minhngoc.com.vn/getkqxs/mien-bac.js"></script>
+        </div>
       </body>
     </html>
   `;

@@ -7,6 +7,7 @@ const app = express();
 
 const API_KEY = process.env.NEYNAR_API_KEY;
 const CAST_HASH = process.env.CAST_HASH;
+const CUTOFF_TIMESTAMP = new Date('2025-07-19T10:45:00Z').getTime();  // 05:45 PM VN = 10:45 AM UTC
 
 const headers = {
   accept: 'application/json',
@@ -66,11 +67,16 @@ async function getPlayersData() {
     const fid = reply.author.fid;
     const username = reply.author.username;
     const text = reply.text.trim();
-    const timestamp = reply.timestamp;
+    const timestamp = new Date(reply.timestamp).getTime();
     const number = extractNumberFromText(text);
 
+    if (timestamp > CUTOFF_TIMESTAMP) {
+      skippedList.push({ username, fid, number: number || 'Invalid', timestamp: reply.timestamp, reason: 'After cutoff time (05:45 PM VN)', type: 'late' });
+      continue;
+    }
+
     if (!number) {
-      skippedList.push({ username, fid, number: 'Invalid', timestamp, reason: 'No valid number (00-99) found' });
+      skippedList.push({ username, fid, number: 'Invalid', timestamp: reply.timestamp, reason: 'No valid number (00-99) found', type: 'invalid' });
       continue;
     }
 
@@ -79,7 +85,7 @@ async function getPlayersData() {
     else if (numberMap.has(number)) skipReason = 'Duplicate number (already selected by earlier user)';
 
     if (skipReason) {
-      skippedList.push({ username, fid, number, timestamp, reason: skipReason });
+      skippedList.push({ username, fid, number, timestamp: reply.timestamp, reason: skipReason, type: 'invalid' });
       continue;
     }
 
@@ -87,7 +93,7 @@ async function getPlayersData() {
       username,
       fid,
       number,
-      timestamp,
+      timestamp: reply.timestamp,
       comment: text,
     });
     seenFids.add(fid);
@@ -132,11 +138,14 @@ app.get('/', async (req, res) => {
           th { background-color: #f2f2f2; }
           .stats { background-color: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px; }
           .note { font-style: italic; color: #666; }
+          .valid-row { background-color: lightgreen; }
+          .invalid-row { background-color: lightyellow; }
+          .late-row { background-color: lightpink; }
         </style>
       </head>
       <body>
         <h1>IS3 Lottery Players List (Real-time Update)</h1>
-        <p class="note">Data updated in real-time on each page load. Refresh to see latest.</p>
+        <p class="note">Data updated in real-time on each page load. Refresh to see latest. Cutoff time: 05:45 PM VN (after this, comments are late and invalid).</p>
 
         <div class="stats">
           <h2>Statistics</h2>
@@ -155,7 +164,7 @@ app.get('/', async (req, res) => {
   for (let i = 0; i <= 99; i++) {
     const num = i.toString().padStart(2, '0');
     const entry = data.fullList.find(e => e.number === num);
-    html += `<tr><td>${num}</td><td>${entry ? `@${entry.username}` : '❌ Not selected yet'}</td><td>${entry ? entry.fid : ''}</td><td>${entry ? entry.timestamp : ''}</td></tr>`;
+    html += `<tr class="valid-row"><td>${num}</td><td>${entry ? `@${entry.username}` : '❌ Not selected yet'}</td><td>${entry ? entry.fid : ''}</td><td>${entry ? entry.timestamp : ''}</td></tr>`;
   }
 
   html += `
@@ -167,7 +176,8 @@ app.get('/', async (req, res) => {
   `;
 
   data.skippedList.forEach(skip => {
-    html += `<tr><td>@${skip.username}</td><td>${skip.fid}</td><td>${skip.number}</td><td>${skip.timestamp}</td><td>${skip.reason}</td></tr>`;
+    const rowClass = skip.type === 'late' ? 'late-row' : 'invalid-row';
+    html += `<tr class="${rowClass}"><td>@${skip.username}</td><td>${skip.fid}</td><td>${skip.number}</td><td>${skip.timestamp}</td><td>${skip.reason}</td></tr>`;
   });
 
   html += `

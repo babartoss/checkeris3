@@ -7,13 +7,24 @@ const app = express();
 
 const API_KEY = process.env.NEYNAR_API_KEY;
 const CAST_HASH = process.env.CAST_HASH;
-const CUTOFF_TIMESTAMP = new Date('2025-07-19T10:45:00Z').getTime();  // 05:45 PM VN = 10:45 AM UTC
 
 const headers = {
   accept: 'application/json',
   api_key: API_KEY,
   'x-neynar-experimental': 'true',  // Keep basic spam filtering
 };
+
+// Hàm fetch cast details to get creation timestamp
+async function fetchCast() {
+  const url = `https://api.neynar.com/v2/farcaster/cast?identifier=${CAST_HASH}&type=hash`;
+  try {
+    const res = await axios.get(url, { headers });
+    return res.data.cast.timestamp;  // Return cast creation timestamp
+  } catch (error) {
+    console.error('❌ Error fetching cast details:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+}
 
 async function fetchConversation(cursor = '') {
   // Use sort_type=chron for chronological order, remove fold to get full without quality filtering
@@ -39,6 +50,21 @@ async function getPlayersData() {
   let allReplies = [];
   let cursor = '';
   let round = 0;
+
+  // Fetch cast creation timestamp to dynamically set cutoff
+  let castTimestamp;
+  try {
+    castTimestamp = await fetchCast();
+  } catch (error) {
+    return { error: 'Unable to fetch cast details for cutoff time.' };
+  }
+
+  // Calculate cutoff: 05:45 PM VN (UTC+7) on the same day as cast creation
+  const castDate = new Date(castTimestamp);  // UTC time
+  // Set to 10:45 AM UTC (equivalent to 05:45 PM VN)
+  const cutoffDate = new Date(castDate);
+  cutoffDate.setUTCHours(10, 45, 0, 0);  // 10:45 UTC = 17:45 VN
+  const CUTOFF_TIMESTAMP = cutoffDate.getTime();
 
   try {
     while (true) {

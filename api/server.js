@@ -59,12 +59,16 @@ async function getPlayersData() {
     return { error: 'Unable to fetch cast details for cutoff time.' };
   }
 
-  // Calculate cutoff: 05:45 PM VN (UTC+7) on the same day as cast creation
+  // Calculate cutoff window: 05:45 PM to 07:30 PM VN (UTC+7) on the same day as cast creation
   const castDate = new Date(castTimestamp);  // UTC time
-  // Set to 10:45 AM UTC (equivalent to 05:45 PM VN)
-  const cutoffDate = new Date(castDate);
-  cutoffDate.setUTCHours(10, 45, 0, 0);  // 10:45 UTC = 17:45 VN
-  const CUTOFF_TIMESTAMP = cutoffDate.getTime();
+  // Cutoff start: 05:45 PM VN = 10:45 AM UTC
+  const cutoffStartDate = new Date(castDate);
+  cutoffStartDate.setUTCHours(10, 45, 0, 0);
+  const CUTOFF_START = cutoffStartDate.getTime();
+  // Cutoff end: 07:30 PM VN = 12:30 PM UTC
+  const cutoffEndDate = new Date(castDate);
+  cutoffEndDate.setUTCHours(12, 30, 0, 0);
+  const CUTOFF_END = cutoffEndDate.getTime();
 
   try {
     while (true) {
@@ -96,8 +100,9 @@ async function getPlayersData() {
     const timestamp = new Date(reply.timestamp).getTime();
     const number = extractNumberFromText(text);
 
-    if (timestamp > CUTOFF_TIMESTAMP) {
-      skippedList.push({ username, fid, number: number || 'Invalid', timestamp: reply.timestamp, reason: 'After cutoff time (05:45 PM VN)', type: 'late' });
+    // Check if within invalid window (05:45 PM - 07:30 PM VN)
+    if (timestamp >= CUTOFF_START && timestamp < CUTOFF_END) {
+      skippedList.push({ username, fid, number: number || 'Invalid', timestamp: reply.timestamp, reason: 'Within invalid window (05:45 PM - 07:30 PM VN)', type: 'late' });
       continue;
     }
 
@@ -171,7 +176,7 @@ app.get('/', async (req, res) => {
       </head>
       <body>
         <h1>ROUND 4 IS3 Lottery Players List (Real-time Update)</h1>
-        <p class="note">Data updated in real-time on each page load. Refresh to see latest. Cutoff time: 10:45 AM UTC (after this, comments are late and invalid).</p>
+        <p class="note">Data updated in real-time on each page load. Refresh to see latest. Invalid window: 05:45 PM - 07:30 PM VN (comments in this period are invalid).</p>
 
         <div class="stats">
           <h2>Statistics</h2>
@@ -209,7 +214,7 @@ app.get('/', async (req, res) => {
   html += `
         </table>
 
-        <h2>Lottery Results Today</h2>
+        <h2>Lottery Results (Embedded from Minh Ngọc)</h2>
         <script language="javascript" src="//www.minhngoc.com.vn/jquery/jquery-1.7.2.js"></script>
         <link rel="stylesheet" type="text/css" href="//www.minhngoc.com.vn/style/bangketqua_mini.css"/>
         <div id="box_kqxs_minhngoc">

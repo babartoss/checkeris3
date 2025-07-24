@@ -175,8 +175,8 @@ app.get('/', async (req, res) => {
         </style>
       </head>
       <body>
-        <h1>ROUND 5 IS3 Lottery Players List (Real-time Update)</h1>
-        <p class="note">Data updated in real-time on each page load. Refresh to see latest. Invalid window: 05:45 PM - 07:30 PM VN (comments in this period are invalid).</p>
+        <h1>ROUND 6 IS3 Lottery Players List (Real-time Update)</h1>
+        <p class="note">Data updated in real-time on each page load. Refresh to see latest. Invalid window: 10:45 AM UTC - 12:30 PM UTC (comments in this period are invalid).</p>
 
         <div class="stats">
           <h2>Statistics</h2>
